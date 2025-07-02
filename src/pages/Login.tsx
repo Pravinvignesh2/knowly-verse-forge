@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,11 +6,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState("");
+  const [forgotSuccess, setForgotSuccess] = useState("");
   
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -41,6 +47,22 @@ const Login = () => {
     }
     
     setIsLoading(false);
+  };
+
+  const handleForgot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotError("");
+    setForgotSuccess("");
+    setForgotLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+      redirectTo: window.location.origin + "/auth/login"
+    });
+    if (error) {
+      setForgotError(error.message || "Failed to send reset email.");
+    } else {
+      setForgotSuccess("Password reset email sent. Please check your inbox.");
+    }
+    setForgotLoading(false);
   };
 
   return (
@@ -74,6 +96,44 @@ const Login = () => {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
+            <div className="text-right mt-1">
+              <Dialog open={showForgot} onOpenChange={setShowForgot}>
+                <DialogTrigger asChild>
+                  <button type="button" className="text-xs text-primary hover:underline" onClick={() => setShowForgot(true)}>
+                    Forgot password?
+                  </button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Reset Password</DialogTitle>
+                    <DialogDescription>Enter your email to receive a password reset link.</DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleForgot} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="forgot-email">Email</Label>
+                      <Input
+                        id="forgot-email"
+                        type="email"
+                        value={forgotEmail}
+                        onChange={e => setForgotEmail(e.target.value)}
+                        required
+                        autoFocus
+                      />
+                    </div>
+                    {forgotError && <div className="text-red-600 text-sm">{forgotError}</div>}
+                    {forgotSuccess && <div className="text-green-600 text-sm">{forgotSuccess}</div>}
+                    <DialogFooter>
+                      <Button type="submit" disabled={forgotLoading}>
+                        {forgotLoading ? "Sending..." : "Send Reset Link"}
+                      </Button>
+                      <DialogClose asChild>
+                        <Button type="button" variant="outline" onClick={() => { setForgotError(""); setForgotSuccess(""); }}>Cancel</Button>
+                      </DialogClose>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? "Signing in..." : "Sign In"}
