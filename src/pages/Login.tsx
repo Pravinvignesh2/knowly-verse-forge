@@ -51,11 +51,12 @@ const Login = () => {
 
   const handleForgot = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setForgotError("");
     setForgotSuccess("");
     setForgotLoading(true);
     const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-      redirectTo: window.location.origin + "/auth/login"
+      redirectTo: window.location.origin + "/reset-password"
     });
     if (error) {
       setForgotError(error.message || "Failed to send reset email.");
@@ -96,43 +97,14 @@ const Login = () => {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
-            <div className="text-right mt-1">
-              <Dialog open={showForgot} onOpenChange={setShowForgot}>
-                <DialogTrigger asChild>
-                  <button type="button" className="text-xs text-primary hover:underline" onClick={() => setShowForgot(true)}>
-                    Forgot password?
-                  </button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Reset Password</DialogTitle>
-                    <DialogDescription>Enter your email to receive a password reset link.</DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleForgot} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="forgot-email">Email</Label>
-                      <Input
-                        id="forgot-email"
-                        type="email"
-                        value={forgotEmail}
-                        onChange={e => setForgotEmail(e.target.value)}
-                        required
-                        autoFocus
-                      />
-                    </div>
-                    {forgotError && <div className="text-red-600 text-sm">{forgotError}</div>}
-                    {forgotSuccess && <div className="text-green-600 text-sm">{forgotSuccess}</div>}
-                    <DialogFooter>
-                      <Button type="submit" disabled={forgotLoading}>
-                        {forgotLoading ? "Sending..." : "Send Reset Link"}
-                      </Button>
-                      <DialogClose asChild>
-                        <Button type="button" variant="outline" onClick={() => { setForgotError(""); setForgotSuccess(""); }}>Cancel</Button>
-                      </DialogClose>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
+            <div className="flex justify-end mt-1">
+              <button
+                type="button"
+                className="text-xs text-primary hover:underline"
+                onClick={() => setShowForgot(true)}
+              >
+                Forgot password?
+              </button>
             </div>
           </div>
           <Button type="submit" className="w-full" disabled={isLoading}>
@@ -146,6 +118,38 @@ const Login = () => {
           </Link>
         </div>
       </CardContent>
+      {/* Forgot Password Dialog outside the login form to prevent submit propagation */}
+      <Dialog open={showForgot} onOpenChange={setShowForgot}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>Enter your email to receive a password reset link.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleForgot} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="forgot-email">Email</Label>
+              <Input
+                id="forgot-email"
+                type="email"
+                value={forgotEmail}
+                onChange={e => setForgotEmail(e.target.value)}
+                required
+                autoFocus
+              />
+            </div>
+            {forgotError && <div className="text-red-600 text-sm">{forgotError}</div>}
+            {forgotSuccess && <div className="text-green-600 text-sm">{forgotSuccess}</div>}
+            <DialogFooter>
+              <Button type="submit" disabled={forgotLoading}>
+                {forgotLoading ? "Sending..." : "Send Reset Link"}
+              </Button>
+              <DialogClose asChild>
+                <Button type="button" variant="outline" onClick={() => { setForgotError(""); setForgotSuccess(""); }}>Cancel</Button>
+              </DialogClose>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

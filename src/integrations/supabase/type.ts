@@ -40,6 +40,7 @@ export type Database = {
           created_at: string | null
           document_id: string
           id: string
+          permission: string
           user_id: string
         }
         Insert: {
@@ -47,6 +48,7 @@ export type Database = {
           created_at?: string | null
           document_id: string
           id?: string
+          permission?: string
           user_id: string
         }
         Update: {
@@ -54,12 +56,103 @@ export type Database = {
           created_at?: string | null
           document_id?: string
           id?: string
+          permission?: string
           user_id?: string
         }
         Relationships: [
           {
+            foreignKeyName: "document_collaborators_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fk_user"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_versions: {
+        Row: {
+          author_id: string
+          changes: string | null
+          content: string | null
+          created_at: string
+          document_id: string
+          id: string
+          version: number
+        }
+        Insert: {
+          author_id: string
+          changes?: string | null
+          content?: string | null
+          created_at?: string
+          document_id: string
+          id?: string
+          version: number
+        }
+        Update: {
+          author_id?: string
+          changes?: string | null
+          content?: string | null
+          created_at?: string
+          document_id?: string
+          id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_versions_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          author_id: string
+          content: string | null
+          created_at: string
+          id: string
+          is_public: boolean
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          content?: string | null
+          created_at?: string
+          id?: string
+          is_public?: boolean
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          content?: string | null
+          created_at?: string
+          id?: string
+          is_public?: boolean
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_author_id_fkey"
+            columns: ["author_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -125,7 +218,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      changepassword: {
+        Args: {
+          current_plain_password: string
+          new_plain_password: string
+          current_id: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
