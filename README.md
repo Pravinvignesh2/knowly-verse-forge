@@ -1,73 +1,75 @@
-# Welcome to your Lovable project
+# Knowly Verse Forge
 
-## Project info
+A collaborative knowledge base platform built with React, Supabase, and a modern UI stack.
 
-**URL**: https://lovable.dev/projects/e8b4ab54-f822-4cd5-94af-41bf41371b33
+---
 
-## How can I edit this code?
+## 🚀 Setup Steps
 
-There are several ways of editing your application.
+1. **Clone the repository:**
+   ```sh
+   git clone <YOUR_GIT_URL>
+   cd knowly-verse-forge
+   ```
+2. **Install dependencies:**
+   ```sh
+   npm install
+   # or
+   bun install
+   ```
+3. **Configure environment variables:**
+   - Copy `.env.example` to `.env` and fill in your Supabase and other secrets.
+   - Example:
+     ```env
+     VITE_SUPABASE_URL=your-supabase-url
+     VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+     ```
+4. **Start the development server:**
+   ```sh
+   npm run dev
+   # or
+   bun run dev
+   ```
+5. **Access the app:**
+   - Visit [http://localhost:8080](http://localhost:8080) in your browser.
 
-**Use Lovable**
+---
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/e8b4ab54-f822-4cd5-94af-41bf41371b33) and start prompting.
+## 🏗️ Architecture Overview
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Frontend:**
+  - React (functional components, hooks, RSC-first)
+  - Tailwind CSS, shadcn-ui, Radix UI
+  - Zustand, TanStack React Query for state/data
+  - Zod for validation
+  - React Router for routing
+- **Backend:**
+  - Supabase (Postgres, Auth, Storage)
+  - RLS (Row Level Security) for secure data access
+  - Triggers/functions for profile creation, document versioning
+- **Features:**
+  - Authentication (email/password, magic link, 2FA-ready)
+  - Document collaboration, sharing, privacy controls
+  - Global search, version history, real-time updates
+  - Responsive, modern UI/UX
 
-**Use your preferred IDE**
+---
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 🧪 Demo Account Credentials
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+> **For demo/testing only. Do not use for production.**
 
-Follow these steps:
+- **Demo User 1:**
+  - Email: `pravinvignesh2502@gmail.com`
+  - Password: `Password@123`
+- **Demo User 2:**
+  - Email: `pravinvignesh13601@gmail.com`
+  - Password: `Password@123`
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+Use these accounts to log in and explore the app's features.
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+---
 
-# Step 3: Install the necessary dependencies.
-npm i
+## 📄 License
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/e8b4ab54-f822-4cd5-94af-41bf41371b33) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+MIT

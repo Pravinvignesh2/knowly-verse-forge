@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   login: (email: string, password: string) => Promise<{ error?: string }>;
-  register: (email: string, password: string, name: string) => Promise<{ error?: string }>;
+  register: (email: string, password: string, name: string, username: string) => Promise<{ error?: string }>;
   logout: () => Promise<void>;
   isLoading: boolean;
 }
@@ -54,19 +54,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       password,
     });
     if (!error) {
-      // After successful login, check if profile has username
+      // After successful login, upsert profile
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('username')
-          .eq('id', user.id)
-          .single();
-        if (!profile?.username) {
-          // Set username to email prefix if missing
-          const defaultUsername = user.email ? user.email.split('@')[0] : '';
-          await supabase.from('profiles').update({ username: defaultUsername }).eq('id', user.id);
-        }
+        // Fetch username from user_metadata if available, else fallback
+        const username = user.user_metadata?.username || user.email?.split('@')[0] || '';
+        await supabase.from('profiles').upsert({
+          id: user.id,
+          username,
+          email: user.email,
+          avatar_url: '',
+        });
       }
     }
     setIsLoading(false);
@@ -77,48 +75,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return {};
   };
 
-  const register = async (email: string, password: string, name: string): Promise<{ error?: string }> => {
+  const register = async (email: string, password: string, name: string, username: string): Promise<{ error?: string }> => {
     setIsLoading(true);
-    
     const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          name: name,
+    let signupResponse;
+    try {
+      signupResponse = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            name: name,
+            username: username,
+          }
         }
-      }
-    });
-    
-    if (!error) {
-      // Wait for the user to be available (after email confirmation and login)
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from('profiles').upsert({
-          id: user.id,
-          username: name,
-          email: user.email,
-          avatar_url: '',
-        });
-      }
+      });
+    } catch (err) {
+      console.error('Registration exception:', err);
+      setIsLoading(false);
+      return { error: (err as Error).message || 'Unknown error during signup' };
     }
-    setIsLoading(false);
-    
+    const { error, data } = signupResponse;
     if (error) {
-      console.error('Registration error:', error.message);
+      console.error('Registration error:', error.message, error, 'Signup response:', signupResponse);
+      setIsLoading(false);
       return { error: error.message };
     }
-    
+    // After successful signup, if user is returned (no email confirmation required), upsert profile
+    if (data?.user) {
+      await supabase.from('profiles').upsert({
+        id: data.user.id,
+        username,
+        email,
+        avatar_url: '',
+      });
+    }
+    setIsLoading(false);
     return {};
   };
 
   const logout = async (): Promise<void> => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
       console.error('Logout error:', error.message);
+    } finally {
+      setUser(null);
+      setSession(null);
     }
   };
 
