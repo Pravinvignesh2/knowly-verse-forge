@@ -1,10 +1,27 @@
-
 import { useState, useEffect } from 'react';
 import { Document, DocumentVersion } from '@/types/document';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const STORAGE_KEY = 'kb_documents';
 const VERSIONS_KEY = 'kb_document_versions';
+
+const getUserStorageKey = (userId: string) => `kb_documents_${userId}`;
+
+const loadAllPublicDocuments = (): Document[] => {
+  // Scan all localStorage keys for public documents
+  const docs: Document[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('kb_documents_')) {
+      try {
+        const userDocs: Document[] = JSON.parse(localStorage.getItem(key) || '[]');
+        docs.push(...userDocs.filter(doc => doc.isPublic));
+      } catch {}
+    }
+  }
+  return docs;
+};
 
 export const useDocuments = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -12,15 +29,24 @@ export const useDocuments = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    loadDocuments();
-  }, []);
+    if (user) {
+      loadDocuments();
+    } else {
+      setDocuments([]);
+      setIsLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const loadDocuments = () => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setDocuments(JSON.parse(stored));
-      }
+      if (!user) return;
+      // Load current user's documents
+      const userDocsRaw = localStorage.getItem(getUserStorageKey(user.id));
+      const userDocs: Document[] = userDocsRaw ? JSON.parse(userDocsRaw) : [];
+      // Load all public documents from all users (excluding current user's own public docs to avoid duplicates)
+      const publicDocs = loadAllPublicDocuments().filter(doc => doc.authorId !== user.id);
+      setDocuments([...userDocs, ...publicDocs]);
     } catch (error) {
       console.error('Error loading documents:', error);
     } finally {
@@ -29,9 +55,11 @@ export const useDocuments = () => {
   };
 
   const saveDocuments = (docs: Document[]) => {
+    if (!user) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(docs));
-      setDocuments(docs);
+      localStorage.setItem(getUserStorageKey(user.id), JSON.stringify(docs));
+      // After saving, reload to update the combined list
+      loadDocuments();
     } catch (error) {
       console.error('Error saving documents:', error);
     }
@@ -40,12 +68,15 @@ export const useDocuments = () => {
   const createDocument = (title: string, content: string = '', isPublic: boolean = false): Document => {
     if (!user) throw new Error('User not authenticated');
 
+    const userDocsRaw = localStorage.getItem(getUserStorageKey(user.id));
+    const userDocs: Document[] = userDocsRaw ? JSON.parse(userDocsRaw) : [];
+
     const newDoc: Document = {
       id: Date.now().toString(),
       title,
       content,
       authorId: user.id,
-      authorName: user.name,
+      authorName: user.user_metadata?.name || user.email || 'User',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       isPublic,
@@ -54,42 +85,40 @@ export const useDocuments = () => {
       version: 1,
     };
 
-    const updatedDocs = [...documents, newDoc];
+    const updatedDocs = [...userDocs, newDoc];
     saveDocuments(updatedDocs);
-    
     // Save initial version
     saveVersion(newDoc.id, content, 'Document created');
-    
     return newDoc;
   };
 
   const updateDocument = (id: string, updates: Partial<Document>): Document | null => {
     if (!user) throw new Error('User not authenticated');
-
-    const docIndex = documents.findIndex(doc => doc.id === id);
+    const userDocsRaw = localStorage.getItem(getUserStorageKey(user.id));
+    const userDocs: Document[] = userDocsRaw ? JSON.parse(userDocsRaw) : [];
+    const docIndex = userDocs.findIndex(doc => doc.id === id);
     if (docIndex === -1) return null;
-
     const updatedDoc = {
-      ...documents[docIndex],
+      ...userDocs[docIndex],
       ...updates,
       updatedAt: new Date().toISOString(),
-      version: documents[docIndex].version + 1,
+      version: userDocs[docIndex].version + 1,
     };
-
-    const updatedDocs = [...documents];
+    const updatedDocs = [...userDocs];
     updatedDocs[docIndex] = updatedDoc;
     saveDocuments(updatedDocs);
-
     // Save version if content changed
-    if (updates.content && updates.content !== documents[docIndex].content) {
+    if (updates.content && updates.content !== userDocs[docIndex].content) {
       saveVersion(id, updates.content, 'Content updated');
     }
-
     return updatedDoc;
   };
 
   const deleteDocument = (id: string): boolean => {
-    const updatedDocs = documents.filter(doc => doc.id !== id);
+    if (!user) return false;
+    const userDocsRaw = localStorage.getItem(getUserStorageKey(user.id));
+    const userDocs: Document[] = userDocsRaw ? JSON.parse(userDocsRaw) : [];
+    const updatedDocs = userDocs.filter(doc => doc.id !== id);
     saveDocuments(updatedDocs);
     return true;
   };
@@ -100,9 +129,8 @@ export const useDocuments = () => {
 
   const searchDocuments = (query: string): Document[] => {
     if (!query.trim()) return documents;
-    
     const lowercaseQuery = query.toLowerCase();
-    return documents.filter(doc => 
+    return documents.filter(doc =>
       doc.title.toLowerCase().includes(lowercaseQuery) ||
       doc.content.toLowerCase().includes(lowercaseQuery) ||
       doc.authorName.toLowerCase().includes(lowercaseQuery)
@@ -154,3 +182,13 @@ export const useDocuments = () => {
     getVersions,
   };
 };
+
+export async function fetchProfiles() {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, username, email, avatar_url')
+    .not('username', 'is', null)
+    .neq('username', '');
+  if (error) throw error;
+  return data;
+}

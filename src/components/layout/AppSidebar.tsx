@@ -1,4 +1,3 @@
-
 import { 
   Home, 
   FileText, 
@@ -53,7 +52,7 @@ export function AppSidebar() {
             <div className="mb-4">
               <Button 
                 asChild 
-                className="w-full justify-start" 
+                className={`w-full ${isCollapsed ? "flex items-center justify-center" : "justify-start"}`} 
                 size={isCollapsed ? "icon" : "default"}
               >
                 <NavLink to="/documents/new">

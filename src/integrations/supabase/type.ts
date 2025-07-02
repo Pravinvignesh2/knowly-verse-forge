@@ -7,9 +7,119 @@ export type Json =
   | Json[]
 
 export type Database = {
-  public: {
+  graphql_public: {
     Tables: {
       [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          operationName?: string
+          query?: string
+          variables?: Json
+          extensions?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+  public: {
+    Tables: {
+      document_collaborators: {
+        Row: {
+          added_by: string | null
+          created_at: string | null
+          document_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string | null
+          document_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string | null
+          document_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_user"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string | null
+          document_id: string
+          id: string
+          message: string
+          read: boolean | null
+          type: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          document_id: string
+          id?: string
+          message: string
+          read?: boolean | null
+          type?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          document_id?: string
+          id?: string
+          message?: string
+          read?: boolean | null
+          type?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          email: string
+          id: string
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email: string
+          id: string
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -132,6 +242,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

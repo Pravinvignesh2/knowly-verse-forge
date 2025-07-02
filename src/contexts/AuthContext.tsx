@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
@@ -50,19 +49,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string): Promise<{ error?: string }> => {
     setIsLoading(true);
-    
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    
+    if (!error) {
+      // After successful login, check if profile has username
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', user.id)
+          .single();
+        if (!profile?.username) {
+          // Set username to email prefix if missing
+          const defaultUsername = user.email ? user.email.split('@')[0] : '';
+          await supabase.from('profiles').update({ username: defaultUsername }).eq('id', user.id);
+        }
+      }
+    }
     setIsLoading(false);
-    
     if (error) {
       console.error('Login error:', error.message);
       return { error: error.message };
     }
-    
     return {};
   };
 
@@ -82,6 +93,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
     
+    if (!error) {
+      // Wait for the user to be available (after email confirmation and login)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('profiles').upsert({
+          id: user.id,
+          username: name,
+          email: user.email,
+          avatar_url: '',
+        });
+      }
+    }
     setIsLoading(false);
     
     if (error) {
