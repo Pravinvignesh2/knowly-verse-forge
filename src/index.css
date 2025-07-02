@@ -103,3 +103,21 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+.prose div {
+  margin-bottom: 1em;
+}
+
+.prose ul, .prose ol {
+  list-style-type: disc;
+  margin-left: 1.5em;
+  padding-left: 0;
+}
+.prose ol {
+  list-style-type: decimal;
+}
+.prose li {
+  margin-bottom: 0.25em;
+}
+.prose p {
+  margin-bottom: 1em;
+}

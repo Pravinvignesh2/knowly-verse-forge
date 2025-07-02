@@ -264,18 +264,16 @@ const DocumentView = () => {
           <Separator />
           
           <CardContent className="pt-6">
-            <div className="prose max-w-none">
-              {document.content ? (
-                <div
-                  className="prose max-w-none"
-                  dangerouslySetInnerHTML={{ __html: document.content || '' }}
-                />
-              ) : (
-                <p className="text-muted-foreground italic">
-                  This document is empty. {canEdit && "Click Edit to add content."}
-                </p>
-              )}
-            </div>
+            {document.content ? (
+              <div
+                className="prose dark:prose-invert max-w-none"
+                dangerouslySetInnerHTML={{ __html: document.content || '' }}
+              />
+            ) : (
+              <p className="text-muted-foreground italic">
+                This document is empty. {canEdit && "Click Edit to add content."}
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -294,7 +292,7 @@ const DocumentView = () => {
                       <div>
                         <p className="font-medium">Version {version.version}</p>
                         <p className="text-sm text-muted-foreground">
-                          {version.changes} • {version.author_id} • {new Date(version.created_at).toLocaleDateString()}
+                          {version.changes} • {new Date(version.created_at).toLocaleDateString()}
                         </p>
                       </div>
                       <Badge variant="outline">

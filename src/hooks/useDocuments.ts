@@ -105,7 +105,23 @@ export const useDocuments = () => {
         ...collabDocs,
       ];
       const uniqueDocs = Array.from(new Map(allDocs.map(doc => [doc.id, doc])).values());
-      setDocuments(uniqueDocs as Document[]);
+
+      // Fetch latest version for each document
+      const docsWithVersion = await Promise.all(
+        uniqueDocs.map(async (doc) => {
+          const { data: versionRows, error: versionError } = await supabase
+            .from('document_versions')
+            .select('version')
+            .eq('document_id', doc.id)
+            .order('version', { ascending: false })
+            .limit(1);
+          if (!versionError && versionRows && versionRows.length > 0) {
+            return { ...doc, version: versionRows[0].version };
+          }
+          return doc;
+        })
+      );
+      setDocuments(docsWithVersion as Document[]);
     } catch (err: any) {
       setError(err.message || 'Failed to load documents');
       setDocuments([]);
@@ -154,7 +170,7 @@ export const useDocuments = () => {
   };
 
   // Update a document
-  const updateDocument = async (id: string, updates: Partial<Document>): Promise<Document | null> => {
+  const updateDocument = async (id: string, updates: Record<string, any>): Promise<Document | null> => {
     if (!user) throw new Error('User not authenticated');
     // Get latest version number
     const versions = await getVersions(id);

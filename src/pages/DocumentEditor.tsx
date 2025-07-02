@@ -52,6 +52,9 @@ const DocumentEditor = () => {
 
   const isEditing = Boolean(id);
 
+  // Add a ref to track last version save time
+  const lastVersionSaveTimeRef = React.useRef<number>(Date.now());
+
   useEffect(() => {
     fetchProfiles().then(users => {
       setMentionUsers(users);
@@ -70,24 +73,28 @@ const DocumentEditor = () => {
   );
   console.log('Filtered collaborators:', filteredCollaborators);
 
-  // MentionList React component (exclude current user)
-  const MentionList = React.forwardRef(({ items, command }, ref) => {
+  // Fix MentionList typing and usage
+  interface MentionListProps {
+    items: any[];
+    command: (arg: any) => void;
+  }
+  const MentionList = React.forwardRef<HTMLDivElement, MentionListProps>(({ items, command }, ref) => {
     const filteredItems = items.filter(item => item.id !== user?.id);
     console.log('Mention filteredItems:', filteredItems);
     return (
-      <div ref={ref} className="bg-white border rounded shadow p-2 max-h-60 overflow-y-auto">
+      <div ref={ref} className="bg-white border rounded shadow p-2 max-h-60 overflow-y-auto dark:bg-neutral-900 dark:text-white dark:border-neutral-700">
         {filteredItems.length ? (
           filteredItems.map((item, index) => (
             <div
               key={item.id}
-              className="p-2 cursor-pointer hover:bg-gray-100"
+              className="p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-neutral-800"
               onClick={() => command({ id: item.id, label: item.username })}
             >
               @{item.username}
             </div>
           ))
         ) : (
-          <div className="p-2 text-gray-400">No users found</div>
+          <div className="p-2 text-gray-400 dark:text-gray-500">No users found</div>
         )}
       </div>
     );
@@ -188,7 +195,7 @@ const DocumentEditor = () => {
           let popup;
           return {
             onStart: props => {
-              reactRenderer = new ReactRenderer(MentionList, {
+              reactRenderer = new ReactRenderer(MentionList as any, {
                 props,
                 editor: props.editor,
               });
@@ -238,7 +245,7 @@ const DocumentEditor = () => {
     },
     editorProps: {
       attributes: {
-        class: 'min-h-[400px] p-3 border rounded-md bg-white focus:outline-none',
+        class: 'min-h-[400px] p-3 border rounded-md bg-white text-black focus:outline-none dark:bg-neutral-900 dark:text-white dark:border-neutral-700',
       },
     },
   });
@@ -272,22 +279,36 @@ const DocumentEditor = () => {
     }
   }, [id, isEditing, getDocument, isLoading]);
 
-  // Auto-save functionality
+  // Auto-save functionality (throttled versioning)
   useEffect(() => {
     if (!isEditing || !id || !title) return;
+    const latestContent = editor?.getHTML() ?? content;
     if (
       title === lastSaved.title &&
-      content === lastSaved.content &&
+      latestContent === lastSaved.content &&
       isPublic === lastSaved.isPublic
     ) {
       return;
     }
-    const autoSaveTimer = setTimeout(() => {
-      updateDocument(id, { title, content, isPublic });
-      setLastSaved({ title, content, isPublic });
+    const autoSaveTimer = setTimeout(async () => {
+      const now = Date.now();
+      // Only create a new version if at least 1 minute has passed since last version
+      if (now - lastVersionSaveTimeRef.current >= 60000) {
+        await updateDocument(id, { title, content: latestContent, is_public: isPublic });
+        lastVersionSaveTimeRef.current = now;
+      } else {
+        // Just update the document without creating a new version (skip versioning logic)
+        await supabase.from('documents').update({
+          title,
+          content: latestContent,
+          is_public: isPublic,
+          updated_at: new Date().toISOString(),
+        }).eq('id', id);
+      }
+      setLastSaved({ title, content: latestContent, isPublic });
     }, 2000);
     return () => clearTimeout(autoSaveTimer);
-  }, [title, content, isPublic, id, isEditing, updateDocument, lastSaved]);
+  }, [title, content, isPublic, id, isEditing, updateDocument, lastSaved, editor]);
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -302,14 +323,15 @@ const DocumentEditor = () => {
     setIsSaving(true);
 
     try {
+      const latestContent = editor?.getHTML() ?? content;
       // Parse mentions from content
       const mentionRegex = /@([a-zA-Z0-9_]+)/g;
-      const mentionedUsernames = Array.from(content.matchAll(mentionRegex)).map(m => m[1]);
+      const mentionedUsernames = Array.from(latestContent.matchAll(mentionRegex)).map(m => m[1]);
       const mentionedUsers = mentionUsers.filter(u => mentionedUsernames.includes(u.username));
 
       let docId;
       if (isEditing && id) {
-        const updatedDoc = updateDocument(id, { title, content, isPublic });
+        const updatedDoc = await updateDocument(id, { title, content: latestContent, is_public: isPublic });
         docId = id;
         if (updatedDoc) {
           toast({
@@ -319,13 +341,15 @@ const DocumentEditor = () => {
           navigate("/documents");
         }
       } else {
-        const newDoc = createDocument(title, content, isPublic);
-        docId = newDoc.id;
-        toast({
-          title: "Document created",
-          description: "Your new document has been created successfully.",
-        });
-        navigate(`/documents/${newDoc.id}`);
+        const newDoc = await createDocument(title, latestContent, isPublic);
+        if (newDoc) {
+          docId = newDoc.id;
+          toast({
+            title: "Document created",
+            description: "Your new document has been created successfully.",
+          });
+          navigate(`/documents/${newDoc.id}`);
+        }
       }
 
       // Auto-share and notify mentioned users
@@ -340,6 +364,7 @@ const DocumentEditor = () => {
         });
       }
     } catch (error) {
+      console.error('Save error:', error);
       toast({
         title: "Save failed",
         description: "There was an error saving your document. Please try again.",
@@ -401,22 +426,23 @@ const DocumentEditor = () => {
               placeholder="Search users..."
               value={collaboratorQuery}
               onChange={e => setCollaboratorQuery(e.target.value)}
+              className="bg-white text-black border dark:bg-neutral-900 dark:text-white dark:border-neutral-700"
             />
           </div>
           <div className="max-h-40 overflow-y-auto mb-2">
             {filteredCollaborators.map(user => (
-              <div key={user.id} className="flex items-center justify-between p-2 hover:bg-gray-100 rounded">
+              <div key={user.id} className="flex items-center justify-between p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded">
                 <span>@{user.username} ({user.email})</span>
                 <Button size="sm" variant="outline" onClick={() => addCollaborator(user)}>
                   Add
                 </Button>
               </div>
             ))}
-            {filteredCollaborators.length === 0 && <div className="text-gray-400 p-2">No users found</div>}
+            {filteredCollaborators.length === 0 && <div className="text-gray-400 dark:text-gray-500 p-2">No users found</div>}
           </div>
           <div>
             <div className="font-semibold mb-1">Current Collaborators:</div>
-            {selectedCollaborators.length === 0 && <div className="text-gray-400">None</div>}
+            {selectedCollaborators.length === 0 && <div className="text-gray-400 dark:text-gray-500">None</div>}
             {selectedCollaborators.map(user => (
               <div key={user.id} className="flex items-center justify-between p-2">
                 <span>@{user.username} ({user.email})</span>
@@ -444,7 +470,7 @@ const DocumentEditor = () => {
               placeholder="Enter document title..."
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="text-lg"
+              className="text-lg bg-white text-black border dark:bg-neutral-900 dark:text-white dark:border-neutral-700"
             />
           </div>
 
@@ -467,15 +493,15 @@ const DocumentEditor = () => {
             {/* TipTap Editor Toolbar */}
             {editor && (
               <div className="flex flex-wrap gap-2 mb-2">
-                <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} disabled={!editor.can().chain().focus().toggleBold().run()} className={`px-3 py-1 rounded border text-sm ${editor.isActive('bold') ? 'bg-gray-200 font-bold' : 'bg-white'}`}>Bold</button>
-                <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} disabled={!editor.can().chain().focus().toggleItalic().run()} className={`px-3 py-1 rounded border text-sm ${editor.isActive('italic') ? 'bg-gray-200 font-bold' : 'bg-white'}`}>Italic</button>
-                <button type="button" onClick={() => editor.chain().focus().toggleUnderline().run()} disabled={!editor.can().chain().focus().toggleUnderline().run()} className={`px-3 py-1 rounded border text-sm ${editor.isActive('underline') ? 'bg-gray-200 font-bold' : 'bg-white'}`}>Underline</button>
-                <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} className={`px-3 py-1 rounded border text-sm ${editor.isActive('heading', { level: 1 }) ? 'bg-gray-200 font-bold' : 'bg-white'}`}>H1</button>
-                <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={`px-3 py-1 rounded border text-sm ${editor.isActive('heading', { level: 2 }) ? 'bg-gray-200 font-bold' : 'bg-white'}`}>H2</button>
-                <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={`px-3 py-1 rounded border text-sm ${editor.isActive('bulletList') ? 'bg-gray-200 font-bold' : 'bg-white'}`}>Bullet List</button>
-                <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`px-3 py-1 rounded border text-sm ${editor.isActive('orderedList') ? 'bg-gray-200 font-bold' : 'bg-white'}`}>Ordered List</button>
-                <button type="button" onClick={() => editor.chain().focus().toggleBlockquote().run()} className={`px-3 py-1 rounded border text-sm ${editor.isActive('blockquote') ? 'bg-gray-200 font-bold' : 'bg-white'}`}>Blockquote</button>
-                <button type="button" onClick={() => editor.chain().focus().toggleCodeBlock().run()} className={`px-3 py-1 rounded border text-sm ${editor.isActive('codeBlock') ? 'bg-gray-200 font-bold' : 'bg-white'}`}>Code Block</button>
+                <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} disabled={!editor.can().chain().focus().toggleBold().run()} className={`px-3 py-1 rounded border text-sm ${editor.isActive('bold') ? 'bg-gray-200 font-bold dark:bg-neutral-700' : 'bg-white dark:bg-neutral-900'} dark:text-white dark:border-neutral-700`}>Bold</button>
+                <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} disabled={!editor.can().chain().focus().toggleItalic().run()} className={`px-3 py-1 rounded border text-sm ${editor.isActive('italic') ? 'bg-gray-200 font-bold dark:bg-neutral-700' : 'bg-white dark:bg-neutral-900'} dark:text-white dark:border-neutral-700`}>Italic</button>
+                <button type="button" onClick={() => editor.chain().focus().toggleUnderline().run()} disabled={!editor.can().chain().focus().toggleUnderline().run()} className={`px-3 py-1 rounded border text-sm ${editor.isActive('underline') ? 'bg-gray-200 font-bold dark:bg-neutral-700' : 'bg-white dark:bg-neutral-900'} dark:text-white dark:border-neutral-700`}>Underline</button>
+                <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} className={`px-3 py-1 rounded border text-sm ${editor.isActive('heading', { level: 1 }) ? 'bg-gray-200 font-bold dark:bg-neutral-700' : 'bg-white dark:bg-neutral-900'} dark:text-white dark:border-neutral-700`}>H1</button>
+                <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={`px-3 py-1 rounded border text-sm ${editor.isActive('heading', { level: 2 }) ? 'bg-gray-200 font-bold dark:bg-neutral-700' : 'bg-white dark:bg-neutral-900'} dark:text-white dark:border-neutral-700`}>H2</button>
+                <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={`px-3 py-1 rounded border text-sm ${editor.isActive('bulletList') ? 'bg-gray-200 font-bold dark:bg-neutral-700' : 'bg-white dark:bg-neutral-900'} dark:text-white dark:border-neutral-700`}>Bullet List</button>
+                <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`px-3 py-1 rounded border text-sm ${editor.isActive('orderedList') ? 'bg-gray-200 font-bold dark:bg-neutral-700' : 'bg-white dark:bg-neutral-900'} dark:text-white dark:border-neutral-700`}>Ordered List</button>
+                <button type="button" onClick={() => editor.chain().focus().toggleBlockquote().run()} className={`px-3 py-1 rounded border text-sm ${editor.isActive('blockquote') ? 'bg-gray-200 font-bold dark:bg-neutral-700' : 'bg-white dark:bg-neutral-900'} dark:text-white dark:border-neutral-700`}>Blockquote</button>
+                <button type="button" onClick={() => editor.chain().focus().toggleCodeBlock().run()} className={`px-3 py-1 rounded border text-sm ${editor.isActive('codeBlock') ? 'bg-gray-200 font-bold dark:bg-neutral-700' : 'bg-white dark:bg-neutral-900'} dark:text-white dark:border-neutral-700`}>Code Block</button>
               </div>
             )}
             <EditorContent editor={editor} key={mentionUsers.map(u => u.id).join(',')} />

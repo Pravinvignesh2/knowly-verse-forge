@@ -24,10 +24,10 @@ const Index = () => {
     <TooltipProvider>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Welcome back, {user?.user_metadata?.name || user?.email || ''}!
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              Welcome back, {user?.user_metadata?.name || user?.email || ''}
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-gray-300">
             Here's what's happening in your knowledge base today.
           </p>
         </div>
