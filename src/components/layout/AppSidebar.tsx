@@ -30,9 +30,10 @@ const items = [
 ];
 
 export function AppSidebar() {
-  const { collapsed } = useSidebar();
+  const { state } = useSidebar();
   const location = useLocation();
   const currentPath = location.pathname;
+  const isCollapsed = state === "collapsed";
 
   const isActive = (path: string) => {
     if (path === "/") return currentPath === "/";
@@ -40,12 +41,12 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar className={collapsed ? "w-14" : "w-64"} collapsible>
+    <Sidebar className={isCollapsed ? "w-14" : "w-64"} collapsible="icon">
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="flex items-center gap-2">
             <BookOpen className="h-4 w-4" />
-            {!collapsed && "Knowledge Base"}
+            {!isCollapsed && "Knowledge Base"}
           </SidebarGroupLabel>
           
           <SidebarGroupContent>
@@ -53,11 +54,11 @@ export function AppSidebar() {
               <Button 
                 asChild 
                 className="w-full justify-start" 
-                size={collapsed ? "icon" : "default"}
+                size={isCollapsed ? "icon" : "default"}
               >
                 <NavLink to="/documents/new">
                   <Plus className="h-4 w-4" />
-                  {!collapsed && <span className="ml-2">New Document</span>}
+                  {!isCollapsed && <span className="ml-2">New Document</span>}
                 </NavLink>
               </Button>
             </div>
@@ -71,7 +72,7 @@ export function AppSidebar() {
                       className="flex items-center gap-2 w-full"
                     >
                       <item.icon className="h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
+                      {!isCollapsed && <span>{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

@@ -141,7 +141,7 @@ const DocumentView = () => {
                       {version.changes} • {version.authorName} • {new Date(version.createdAt).toLocaleDateString()}
                     </p>
                   </div>
-                  <Badge variant="outline" size="sm">
+                  <Badge variant="outline">
                     {version.version === document.version ? "Current" : "Historic"}
                   </Badge>
                 </div>
