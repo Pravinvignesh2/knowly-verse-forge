@@ -16,27 +16,30 @@ export function UserMenu() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate("/auth/login");
   };
 
   if (!user) return null;
 
+  const displayName = user.user_metadata?.name || user.email?.split('@')[0] || 'User';
+  const userInitials = displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase();
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Avatar className="cursor-pointer hover:ring-2 hover:ring-primary transition-all">
-          <AvatarImage src={user.avatar} />
+          <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${displayName}`} />
           <AvatarFallback>
-            {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+            {userInitials}
           </AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56 bg-background" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.name}</p>
+            <p className="text-sm font-medium leading-none">{displayName}</p>
             <p className="text-xs leading-none text-muted-foreground">
               {user.email}
             </p>

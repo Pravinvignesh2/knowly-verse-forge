@@ -1,18 +1,14 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  avatar?: string;
-}
+import { supabase } from '@/integrations/supabase/client';
+import { User, Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (email: string, password: string, name: string) => Promise<boolean>;
-  logout: () => void;
+  session: Session | null;
+  login: (email: string, password: string) => Promise<{ error?: string }>;
+  register: (email: string, password: string, name: string) => Promise<{ error?: string }>;
+  logout: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -28,74 +24,83 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for stored user on app load
-    const storedUser = localStorage.getItem('kb_user');
-    const token = localStorage.getItem('kb_token');
-    
-    if (storedUser && token) {
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
+        setSession(session);
+        setUser(session?.user ?? null);
+        setIsLoading(false);
+      }
+    );
+
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<{ error?: string }> => {
     setIsLoading(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // For demo purposes, accept any email/password combination
-    const userData = {
-      id: '1',
+    const { error } = await supabase.auth.signInWithPassword({
       email,
-      name: email.split('@')[0],
-      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${email}`
-    };
+      password,
+    });
     
-    const token = btoa(`${email}:${Date.now()}`); // Simple token simulation
-    
-    localStorage.setItem('kb_user', JSON.stringify(userData));
-    localStorage.setItem('kb_token', token);
-    
-    setUser(userData);
     setIsLoading(false);
-    return true;
+    
+    if (error) {
+      console.error('Login error:', error.message);
+      return { error: error.message };
+    }
+    
+    return {};
   };
 
-  const register = async (email: string, password: string, name: string): Promise<boolean> => {
+  const register = async (email: string, password: string, name: string): Promise<{ error?: string }> => {
     setIsLoading(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const redirectUrl = `${window.location.origin}/`;
     
-    const userData = {
-      id: Date.now().toString(),
+    const { error } = await supabase.auth.signUp({
       email,
-      name,
-      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${name}`
-    };
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: {
+          name: name,
+        }
+      }
+    });
     
-    const token = btoa(`${email}:${Date.now()}`);
-    
-    localStorage.setItem('kb_user', JSON.stringify(userData));
-    localStorage.setItem('kb_token', token);
-    
-    setUser(userData);
     setIsLoading(false);
-    return true;
+    
+    if (error) {
+      console.error('Registration error:', error.message);
+      return { error: error.message };
+    }
+    
+    return {};
   };
 
-  const logout = () => {
-    localStorage.removeItem('kb_user');
-    localStorage.removeItem('kb_token');
-    setUser(null);
+  const logout = async (): Promise<void> => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Logout error:', error.message);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, session, login, register, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

@@ -22,24 +22,23 @@ const Register = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    try {
-      const success = await register(email, password, name);
-      if (success) {
-        toast({
-          title: "Account created!",
-          description: "Welcome to your knowledge base.",
-        });
-        navigate("/");
-      }
-    } catch (error) {
+    const { error } = await register(email, password, name);
+    
+    if (error) {
       toast({
         title: "Registration failed",
-        description: "Please try again with different details.",
+        description: error,
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
+    } else {
+      toast({
+        title: "Account created!",
+        description: "Please check your email to verify your account before signing in.",
+      });
+      navigate("/auth/login");
     }
+    
+    setIsLoading(false);
   };
 
   return (
@@ -79,10 +78,11 @@ const Register = () => {
             <Input
               id="password"
               type="password"
-              placeholder="Create a password"
+              placeholder="Create a password (min 6 characters)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              minLength={6}
             />
           </div>
           <Button type="submit" className="w-full" disabled={isLoading}>

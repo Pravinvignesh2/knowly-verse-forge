@@ -24,24 +24,23 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    try {
-      const success = await login(email, password);
-      if (success) {
-        toast({
-          title: "Welcome back!",
-          description: "You have been successfully logged in.",
-        });
-        navigate(from, { replace: true });
-      }
-    } catch (error) {
+    const { error } = await login(email, password);
+    
+    if (error) {
       toast({
         title: "Login failed",
-        description: "Please check your credentials and try again.",
+        description: error,
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
+    } else {
+      toast({
+        title: "Welcome back!",
+        description: "You have been successfully logged in.",
+      });
+      navigate(from, { replace: true });
     }
+    
+    setIsLoading(false);
   };
 
   return (
