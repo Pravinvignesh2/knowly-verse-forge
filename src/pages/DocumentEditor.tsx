@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Save, ArrowLeft } from "lucide-react";
@@ -13,14 +12,6 @@ import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import Underline from '@tiptap/extension-underline';
-import Bold from '@tiptap/extension-bold';
-import Italic from '@tiptap/extension-italic';
-import Heading from '@tiptap/extension-heading';
-import ListItem from '@tiptap/extension-list-item';
-import BulletList from '@tiptap/extension-bullet-list';
-import OrderedList from '@tiptap/extension-ordered-list';
-import Blockquote from '@tiptap/extension-blockquote';
-import CodeBlock from '@tiptap/extension-code-block';
 import Mention from '@tiptap/extension-mention';
 import { fetchProfiles } from '@/hooks/useDocuments';
 import React from "react";
@@ -171,7 +162,7 @@ const DocumentEditor = () => {
     setSelectedCollaborators(prev => prev.filter(u => u.id !== userId));
   };
 
-  // Memoize mention extension to avoid recreating on every render
+  //mention extension to avoid recreating on every render
   const mentionExtension = React.useMemo(() =>
     Mention.configure({
       HTMLAttributes: { class: 'mention' },
@@ -354,8 +345,6 @@ const DocumentEditor = () => {
 
       // Auto-share and notify mentioned users
       for (const user of mentionedUsers) {
-        // Add to permissions (if not already present)
-        // (Assume updateDocument handles permissions array, or add logic here)
         // Send notification
         await supabase.from('notifications').insert({
           user_id: user.id,

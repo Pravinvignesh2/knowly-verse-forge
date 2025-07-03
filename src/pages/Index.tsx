@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/button";
 import { FileText, Plus, Search, Users } from "lucide-react";
 import { useCollaboratorCounts } from "@/hooks/useCollaboratorCounts";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { Download } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import html2pdf from "html2pdf.js";
+
 
 const Index = () => {
   const { user } = useAuth();
@@ -19,6 +23,64 @@ const Index = () => {
 
   const myDocuments = documents.filter(doc => doc.authorId === user?.id);
   const publicDocuments = documents.filter(doc => doc.isPublic);
+
+const handleDownloadPDF = async (docId: string) => {
+  const { data: doc, error } = await supabase
+    .from("documents")
+    .select("*")
+    .eq("id", docId)
+    .single();
+
+  if (error || !doc) {
+    console.error("Failed to fetch document for PDF:", error);
+    return;
+  }
+
+  const container = document.getElementById("pdf-export-container");
+  if (!container) return;
+
+  // Inject full document HTML
+  container.innerHTML = `
+    <div style="padding: 24px; font-family: sans-serif; max-width: 800px;">
+      <h1 style="margin-bottom: 8px;">${doc.title}</h1>
+      <div style="font-size: 14px; color: #555;">
+        <p><strong>Author ID:</strong> ${doc.author_id}</p>
+        <p><strong>Created:</strong> ${new Date(doc.created_at).toLocaleString()}</p>
+        <p><strong>Updated:</strong> ${new Date(doc.updated_at).toLocaleString()}</p>
+        <p><strong>Visibility:</strong> ${doc.is_public ? "Public" : "Private"}</p>
+        <p><strong>Version:</strong> v${doc.version || 1}</p>
+      </div>
+      <hr style="margin: 16px 0;" />
+      <div style="white-space: normal; font-size: 15px;">
+        ${doc.content || "<i>No content available.</i>"}
+      </div>
+    </div>
+  `;
+
+  // Temporarily show container to allow rendering
+  container.style.display = "block";
+
+  // Use setTimeout to allow the DOM to finish rendering before pdf generation
+  setTimeout(() => {
+    const opt = {
+      margin: 0.5,
+      filename: `${doc.title || "document"}.pdf`,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
+    };
+
+    html2pdf()
+      .from(container)
+      .set(opt)
+      .save()
+      .then(() => {
+        container.style.display = "none"; // Hide again after generating PDF
+      });
+  }, 100); // Slight delay for DOM readiness
+};
+
+
 
   return (
     <TooltipProvider>
@@ -111,6 +173,14 @@ const Index = () => {
                           Updated {new Date(doc.updatedAt).toLocaleDateString()}
                         </p>
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDownloadPDF(doc.id)}
+                      >
+                        <Download className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                      </Button>
+
                       <div className="flex items-center gap-2">
                         {doc.isPublic && (
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">
@@ -121,6 +191,7 @@ const Index = () => {
                     </div>
                   ))
                 )}
+
               </div>
               <div className="mt-4">
                 <Button asChild variant="outline" className="w-full">
@@ -162,6 +233,8 @@ const Index = () => {
           </Card>
         </div>
       </div>
+      <div id="pdf-export-container" style={{ display: "none" }}></div>
+
     </TooltipProvider>
   );
 };
